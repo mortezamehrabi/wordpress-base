@@ -80,7 +80,9 @@ RUN set -eux; \
     chmod +x /usr/local/bin/wp
 
 RUN set -eux; \
-    wp --version
+    php -m | grep -i phar; \
+    ls -la /usr/local/bin/wp; \
+    php /usr/local/bin/wp --version
 
 # ── PHP Configuration ───────────────────────────────────────────────
 COPY config/php.ini     /usr/local/etc/php/conf.d/zz-custom.ini
