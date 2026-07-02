@@ -10,39 +10,59 @@ LABEL maintainer="Morteza Mehrabi <hello@morteza.cloud>" \
 
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
-# ── PHP Extensions + ionCube Loader ─────────────────────────────────
-# Single RUN layer: install deps, build, enable extensions, purge deps
+# ── Install build dependencies ──────────────────────────────────────
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
         $PHPIZE_DEPS \
         libmagickwand-dev \
         unzip \
-        curl; \
-    \
-    docker-php-ext-install -j "$(nproc)" soap; \
-    \
+        curl
+
+# ── Build and install SOAP ──────────────────────────────────────────
+RUN set -eux; \
+    docker-php-ext-install -j "$(nproc)" soap
+
+# ── Build and install Redis ─────────────────────────────────────────
+RUN set -eux; \
     pecl install redis; \
-    docker-php-ext-enable redis; \
-    \
-    docker-php-ext-enable imagick; \
-    \
-    # ionCube Loader — must be loaded as zend_extension, NOT regular extension
-    mkdir -p /tmp/ioncube; \
+    docker-php-ext-enable redis
+
+# ── Enable Imagick (pre-installed in base WordPress image) ──────────
+RUN set -eux; \
+    docker-php-ext-enable imagick 2>&1 || true
+
+# ── Install ionCube Loader ──────────────────────────────────────────
+# ionCube is a Zend Extension — must use zend_extension=, not extension=
+RUN set -eux; \
     case "$(uname -m)" in \
         aarch64) IONCUBE_ARCH="aarch64" ;; \
         *)       IONCUBE_ARCH="x86-64" ;; \
     esac; \
+    echo "Downloading ionCube for ${IONCUBE_ARCH}..."; \
     curl -fsSL \
         "https://downloads.ioncube.com/loader_downloads/ioncube_loaders_lin_${IONCUBE_ARCH}.tar.gz" \
         -o /tmp/ioncube.tar.gz; \
+    mkdir -p /tmp/ioncube; \
     tar xzf /tmp/ioncube.tar.gz -C /tmp/ioncube --strip-components=1; \
+    ls -la /tmp/ioncube/; \
+    IONCUBE_SO="/tmp/ioncube/ioncube_loader_lin_8.3.so"; \
+    if [ ! -f "$IONCUBE_SO" ]; then \
+        echo "ERROR: ionCube loader for PHP 8.3 not found in archive"; \
+        echo "Available files:"; \
+        ls -la /tmp/ioncube/; \
+        exit 1; \
+    fi; \
     PHP_EXT_DIR="$(php -r 'echo ini_get("extension_dir");')"; \
-    cp "/tmp/ioncube/ioncube_loader_lin_8.3.so" "${PHP_EXT_DIR}/"; \
+    cp "$IONCUBE_SO" "${PHP_EXT_DIR}/"; \
     echo "zend_extension=${PHP_EXT_DIR}/ioncube_loader_lin_8.3.so" \
         > /usr/local/etc/php/conf.d/00-ioncube.ini; \
-    \
-    apt-get purge -y $PHPIZE_DEPS libmagickwand-dev; \
+    rm -rf /tmp/ioncube /tmp/ioncube.tar.gz
+
+# ── Cleanup build dependencies ──────────────────────────────────────
+RUN set -eux; \
+    apt-get purge -y $PHPIZE_DEPS libmagickwand-dev || true; \
+    apt-get autoremove -y || true; \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*; \
     pecl clear-cache
 
@@ -61,7 +81,8 @@ COPY config/php.ini     /usr/local/etc/php/conf.d/zz-custom.ini
 COPY config/opcache.ini /usr/local/etc/php/conf.d/zz-opcache.ini
 
 # ── Apache ──────────────────────────────────────────────────────────
-RUN a2enmod rewrite headers expires; \
+RUN set -eux; \
+    a2enmod rewrite headers expires; \
     sed -i 's/AllowOverride None/AllowOverride All/g' /etc/apache2/apache2.conf
 
 # ── Verify ──────────────────────────────────────────────────────────
