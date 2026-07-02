@@ -59,6 +59,11 @@ RUN set -eux; \
         > /usr/local/etc/php/conf.d/00-ioncube.ini; \
     rm -rf /tmp/ioncube /tmp/ioncube.tar.gz
 
+# ── Verify PHP starts with ionCube loaded ──────────────────────────
+RUN set -eux; \
+    php -v; \
+    php -m | grep -i ioncube
+
 # ── Cleanup build dependencies ──────────────────────────────────────
 RUN set -eux; \
     apt-get purge -y $PHPIZE_DEPS libmagickwand-dev; \
