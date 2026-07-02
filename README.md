@@ -210,6 +210,8 @@ docker run -v ./my-apache.conf:/etc/apache2/conf-enabled/my-apache.conf wordpres
 - **Single `RUN` layer for extensions:** Install deps, build extensions, purge deps in one layer. Keeps image size small (~no build artifacts in intermediate layers).
 - **`sed` instead of custom Apache site config:** The official WordPress image already ships a working VirtualHost. We patch `AllowOverride` globally rather than risking an incompatible override.
 - **`COPY --from=composer:2`** instead of downloading a phar. The official Composer image is maintained, multi-arch, and versioned. This is the idiomatic Docker approach.
+- **ionCube loaded as `zend_extension`:** ionCube is a Zend Engine extension, not a regular PHP extension. It is loaded via `/usr/local/etc/php/conf.d/00-ioncube.ini` with the `zend_extension=` directive. Using `docker-php-ext-enable` for ionCube is incorrect and would cause a fatal load error.
+- **Architecture detection via `uname -m`:** The Dockerfile uses `uname -m` (not `TARGETARCH`) for ionCube binary selection. This works correctly in both local `docker build` and multi-platform BuildKit builds.
 - **OPcache timestamp validation ON by default:** Many WordPress deployments lack a deployment hook that clears OPcache. Keeping `validate_timestamps=1` with `revalidate_freq=2` gives near-production throughput without stale-code surprises.
 - **No ImageMagick policy overrides:** The restrictive default policies in Debian Bookworm are a security feature. Users who need PDF/EPS processing can override the policy in a child image.
 
