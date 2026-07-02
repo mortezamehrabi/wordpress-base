@@ -61,10 +61,8 @@ RUN set -eux; \
 
 # ── Cleanup build dependencies ──────────────────────────────────────
 RUN set -eux; \
-    apt-get purge -y $PHPIZE_DEPS libmagickwand-dev || true; \
-    apt-get autoremove -y || true; \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*; \
-    pecl clear-cache
+    apt-get purge -y $PHPIZE_DEPS libmagickwand-dev; \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # ── Composer ────────────────────────────────────────────────────────
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
