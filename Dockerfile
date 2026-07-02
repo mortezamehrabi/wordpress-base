@@ -69,9 +69,12 @@ COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 
 # ── WP-CLI ──────────────────────────────────────────────────────────
 RUN set -eux; \
-    curl -fsSL https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
+    curl -fsSL --retry 3 --retry-delay 5 \
+        https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
         -o /usr/local/bin/wp; \
-    chmod +x /usr/local/bin/wp; \
+    chmod +x /usr/local/bin/wp
+
+RUN set -eux; \
     wp --version
 
 # ── PHP Configuration ───────────────────────────────────────────────
